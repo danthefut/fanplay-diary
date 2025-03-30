@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -9,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, Star, Trophy, Flag, YouTube, Share2, Heart } from 'lucide-react';
+import { Calendar, Star, Trophy, Flag, Youtube, Share2, Heart } from 'lucide-react';
 import { allMatches, matchRatings, currentUser } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 
@@ -210,7 +209,7 @@ const MatchDetail = () => {
                       Share
                     </Button>
                     <Button variant="outline" size="sm">
-                      <YouTube className="h-4 w-4 mr-2" />
+                      <Youtube className="h-4 w-4 mr-2" />
                       Highlights
                     </Button>
                   </div>

@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import FeaturedMatches from '@/components/FeaturedMatches';
 import UpcomingMatches from '@/components/UpcomingMatches';
 import { Button } from '@/components/ui/button';
-import { Trophy } from 'lucide-react';
+import { Trophy, Star, Users } from 'lucide-react';
 import { featuredMatches, upcomingMatches, liveMatches } from '@/data/mockData';
 import { Link } from 'react-router-dom';
 
