@@ -86,7 +86,7 @@ const BuscarPartidas = () => {
       season: selectedYear
     };
     
-    if (selectedRound) {
+    if (selectedRound && selectedRound !== 'all') {
       params.round = selectedRound;
     }
     
@@ -242,7 +242,7 @@ const BuscarPartidas = () => {
                   <SelectValue placeholder="Selecione a rodada" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as rodadas</SelectItem>
+                  <SelectItem value="all">Todas as rodadas</SelectItem>
                   {rounds.map(round => (
                     <SelectItem key={round} value={round}>
                       {round}

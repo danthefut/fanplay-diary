@@ -1,71 +1,59 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  FootballApiResponse, 
-  LeaguesApiResponse, 
-  RoundsApiResponse 
-} from '@/types/footballApi';
-import { toast } from '@/hooks/use-toast';
+import { FootballApiResponse } from '@/types/footballApi';
 
 export const useFootballApi = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const callApi = async <T,>(endpoint: string, params: Record<string, string | number>) => {
+  const fetchFromFootballApi = async <T>(
+    endpoint: string, 
+    params?: Record<string, string | number>
+  ): Promise<FootballApiResponse<T> | null> => {
     setIsLoading(true);
-    setError(null);
-
+    
     try {
-      // Construir os parâmetros da URL
-      const searchParams = new URLSearchParams();
-      searchParams.append('endpoint', endpoint);
+      const queryParams = params ? new URLSearchParams() : undefined;
       
-      for (const [key, value] of Object.entries(params)) {
-        searchParams.append(key, value.toString());
+      if (params && queryParams) {
+        Object.entries(params).forEach(([key, value]) => {
+          queryParams.append(key, value.toString());
+        });
       }
-
+      
+      const queryString = queryParams ? `?${queryParams.toString()}` : '';
+      
       const { data, error } = await supabase.functions.invoke('football-api', {
-        query: searchParams,
+        body: {
+          endpoint: `${endpoint}${queryString}`
+        }
       });
-
+      
       if (error) {
-        throw new Error(error.message);
+        console.error('Error calling Football API:', error);
+        return null;
       }
-
-      setIsLoading(false);
-      return data as T;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao chamar a API Football';
-      setError(errorMessage);
-      toast({
-        title: 'Erro',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-      setIsLoading(false);
+      
+      return data as FootballApiResponse<T>;
+    } catch (error) {
+      console.error('Error in fetchFromFootballApi:', error);
       return null;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getMatches = (params: Record<string, string | number>) => {
-    return callApi<FootballApiResponse>('fixtures', params);
-  };
-
-  const getLeagues = (params: Record<string, string | number> = {}) => {
-    return callApi<LeaguesApiResponse>('leagues', params);
-  };
-
-  const getRounds = (leagueId: number, season: number) => {
-    return callApi<RoundsApiResponse>('fixtures/rounds', {
-      league: leagueId,
-      season: season
-    });
-  };
+  const getMatches = (params?: Record<string, string | number>) => 
+    fetchFromFootballApi('fixtures', params);
+  
+  const getLeagues = (params?: Record<string, string | number>) => 
+    fetchFromFootballApi('leagues', params);
+  
+  const getRounds = (leagueId: number, season: number) => 
+    fetchFromFootballApi('fixtures/rounds', { league: leagueId, season });
 
   return {
     isLoading,
-    error,
     getMatches,
     getLeagues,
     getRounds
