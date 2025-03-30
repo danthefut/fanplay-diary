@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Calendar, Star, Trophy, Users } from 'lucide-react';
+import { Calendar, Star, Trophy, Users, Search } from 'lucide-react';
 
 const Navbar = () => {
   return (
@@ -18,28 +18,32 @@ const Navbar = () => {
         <nav className="hidden md:flex items-center gap-6">
           <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
             <Trophy className="h-4 w-4" />
-            <span>Home</span>
+            <span>Início</span>
           </Link>
           <Link to="/matches" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
             <Calendar className="h-4 w-4" />
-            <span>Matches</span>
+            <span>Partidas</span>
+          </Link>
+          <Link to="/buscar-partidas" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+            <Search className="h-4 w-4" />
+            <span>Buscar Partidas</span>
           </Link>
           <Link to="/ratings" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
             <Star className="h-4 w-4" />
-            <span>Ratings</span>
+            <span>Avaliações</span>
           </Link>
           <Link to="/community" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
             <Users className="h-4 w-4" />
-            <span>Community</span>
+            <span>Comunidade</span>
           </Link>
         </nav>
         
         <div className="flex items-center gap-4">
           <Link to="/login">
-            <Button variant="outline" size="sm">Login</Button>
+            <Button variant="outline" size="sm">Entrar</Button>
           </Link>
           <Link to="/register">
-            <Button size="sm">Register</Button>
+            <Button size="sm">Cadastrar</Button>
           </Link>
         </div>
       </div>
