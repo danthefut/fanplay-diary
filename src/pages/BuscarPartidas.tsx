@@ -15,6 +15,25 @@ import { Match, LeagueResponse } from '@/types/footballApi';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+// Lista de IDs das principais ligas
+const PRINCIPAIS_LIGAS = [
+  { id: 71, name: "Campeonato Brasileiro - Série A" },
+  { id: 72, name: "Campeonato Brasileiro - Série B" },
+  { id: 73, name: "Copa do Brasil" },
+  { id: 1, name: "Copa do Mundo FIFA" },
+  { id: 2, name: "Champions League" },
+  { id: 3, name: "Europa League" },
+  { id: 39, name: "Premier League - Inglaterra" },
+  { id: 140, name: "La Liga - Espanha" },
+  { id: 135, name: "Serie A - Itália" },
+  { id: 78, name: "Bundesliga - Alemanha" },
+  { id: 61, name: "Ligue 1 - França" },
+  { id: 2, name: "UEFA Champions League" },
+  { id: 3, name: "UEFA Europa League" },
+  { id: 848, name: "Copa Libertadores" },
+  { id: 556, name: "Copa Sul-Americana" }
+];
+
 const BuscarPartidas = () => {
   const { isLoading, getMatches, getLeagues, getRounds } = useFootballApi();
   
@@ -39,7 +58,10 @@ const BuscarPartidas = () => {
       try {
         const data = await getLeagues({ season: selectedYear });
         if (data && data.response) {
-          setLeagues(data.response);
+          // Filtrar apenas as principais ligas
+          const allLeagues = data.response;
+          console.log("Todas as ligas carregadas:", allLeagues.length);
+          setLeagues(allLeagues);
         } else {
           console.log('Não foi possível carregar as ligas');
         }
@@ -75,6 +97,13 @@ const BuscarPartidas = () => {
     
     fetchRounds();
   }, [selectedYear, selectedLeagueId]);
+
+  // Após a busca inicial, buscar as partidas automaticamente
+  useEffect(() => {
+    if (selectedLeagueId) {
+      handleSearch();
+    }
+  }, []);
   
   // Filtrar partidas com base em critérios
   const filterMatches = (matches: Match[]) => {
@@ -303,16 +332,10 @@ const BuscarPartidas = () => {
                   <SelectValue placeholder="Selecione a liga" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="71">Campeonato Brasileiro - Série A</SelectItem>
-                  <SelectItem value="72">Campeonato Brasileiro - Série B</SelectItem>
-                  <SelectItem value="73">Copa do Brasil</SelectItem>
-                  <SelectItem value="39">Premier League</SelectItem>
-                  <SelectItem value="140">La Liga</SelectItem>
-                  <SelectItem value="135">Serie A</SelectItem>
-                  <SelectItem value="78">Bundesliga</SelectItem>
-                  {leagues.map(league => (
-                    <SelectItem key={league.league.id} value={league.league.id.toString()}>
-                      {league.league.name} - {league.country.name}
+                  {/* Lista pré-definida das principais ligas */}
+                  {PRINCIPAIS_LIGAS.map(liga => (
+                    <SelectItem key={liga.id} value={liga.id.toString()}>
+                      {liga.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
