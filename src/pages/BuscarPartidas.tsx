@@ -22,15 +22,15 @@ const BuscarPartidas = () => {
   const [leagues, setLeagues] = useState<LeagueResponse[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedYear, setSelectedYear] = useState('2023'); // Usando 2023 como padrão pois o plano gratuito permite
   const [selectedLeagueId, setSelectedLeagueId] = useState('71'); // Default: Brasil Série A
-  const [selectedRound, setSelectedRound] = useState<string>('');
+  const [selectedRound, setSelectedRound] = useState('all'); // Valor "all" para todas as rodadas
   const [rounds, setRounds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('todas');
   const [loadingLeagues, setLoadingLeagues] = useState(false);
 
-  // Anos disponíveis para seleção
-  const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
+  // Anos disponíveis para seleção (apenas 2021 a 2023 para o plano gratuito)
+  const years = ['2021', '2022', '2023'];
   
   // Buscar ligas disponíveis
   useEffect(() => {
@@ -41,11 +41,10 @@ const BuscarPartidas = () => {
         if (data && data.response) {
           setLeagues(data.response);
         } else {
-          toast.error('Não foi possível carregar as ligas');
+          console.log('Não foi possível carregar as ligas');
         }
       } catch (error) {
         console.error('Erro ao buscar ligas:', error);
-        toast.error('Erro ao buscar ligas');
       } finally {
         setLoadingLeagues(false);
       }
@@ -132,18 +131,29 @@ const BuscarPartidas = () => {
       params.date = format(selectedDate, 'yyyy-MM-dd');
     }
     
+    console.log('Buscando partidas com parâmetros:', params);
+    
     try {
       const data = await getMatches(params);
+      console.log('Resposta da API de partidas:', data);
+      
       if (data && data.response) {
         setMatches(data.response);
         console.log('Partidas carregadas:', data.response);
         
         if (data.response.length === 0) {
           toast.info('Nenhuma partida encontrada com os filtros selecionados');
+        } else {
+          toast.success(`${data.response.length} partidas encontradas`);
         }
       } else {
         setMatches([]);
-        toast.error('Erro ao buscar partidas');
+        if (data && data.errors && Object.keys(data.errors).length > 0) {
+          const errorMsg = Object.values(data.errors).join('. ');
+          toast.error(`Erro ao buscar partidas: ${errorMsg}`);
+        } else {
+          toast.error('Erro ao buscar partidas');
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar partidas:', error);
@@ -154,7 +164,7 @@ const BuscarPartidas = () => {
   // Limpar todos os filtros
   const handleClearFilters = () => {
     setSelectedDate(undefined);
-    setSelectedRound('');
+    setSelectedRound('all');
     setSearchQuery('');
   };
   

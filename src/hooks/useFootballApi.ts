@@ -13,15 +13,7 @@ export const useFootballApi = () => {
     setIsLoading(true);
     
     try {
-      const queryParams = params ? new URLSearchParams() : undefined;
-      
-      if (params && queryParams) {
-        Object.entries(params).forEach(([key, value]) => {
-          queryParams.append(key, value.toString());
-        });
-      }
-      
-      const queryString = queryParams ? `?${queryParams.toString()}` : '';
+      console.log(`Calling Football API: ${endpoint}`, params);
       
       const { data, error } = await supabase.functions.invoke('football-api', {
         body: {
@@ -35,6 +27,7 @@ export const useFootballApi = () => {
         return null;
       }
       
+      console.log('Football API response:', data);
       return data as FootballApiResponse<T>;
     } catch (error) {
       console.error('Error in fetchFromFootballApi:', error);
