@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Navbar from '@/components/Navbar';
-import MatchCard from '@/components/MatchCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
@@ -12,37 +11,71 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar as CalendarIcon, Search, FilterX, Loader2 } from 'lucide-react';
 import { useFootballApi } from '@/hooks/useFootballApi';
-import { Match } from '@/types/footballApi';
+import { Match, LeagueResponse } from '@/types/footballApi';
 import { cn } from '@/lib/utils';
-
-const BRAZIL_LEAGUE_ID = 71; // ID da liga brasileira
+import { toast } from 'sonner';
 
 const BuscarPartidas = () => {
   const { isLoading, getMatches, getLeagues, getRounds } = useFootballApi();
   
   const [matches, setMatches] = useState<Match[]>([]);
+  const [leagues, setLeagues] = useState<LeagueResponse[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedLeagueId, setSelectedLeagueId] = useState('71'); // Default: Brasil Série A
   const [selectedRound, setSelectedRound] = useState<string>('');
   const [rounds, setRounds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('todas');
+  const [loadingLeagues, setLoadingLeagues] = useState(false);
 
   // Anos disponíveis para seleção
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   
-  // Buscar rodadas disponíveis quando o ano muda
+  // Buscar ligas disponíveis
+  useEffect(() => {
+    const fetchLeagues = async () => {
+      setLoadingLeagues(true);
+      try {
+        const data = await getLeagues({ season: selectedYear });
+        if (data && data.response) {
+          setLeagues(data.response);
+        } else {
+          toast.error('Não foi possível carregar as ligas');
+        }
+      } catch (error) {
+        console.error('Erro ao buscar ligas:', error);
+        toast.error('Erro ao buscar ligas');
+      } finally {
+        setLoadingLeagues(false);
+      }
+    };
+    
+    fetchLeagues();
+  }, [selectedYear]);
+  
+  // Buscar rodadas disponíveis quando o ano ou liga muda
   useEffect(() => {
     const fetchRounds = async () => {
-      const data = await getRounds(BRAZIL_LEAGUE_ID, parseInt(selectedYear));
-      if (data && data.response) {
-        const roundsList = data.response.map(r => r.round);
-        setRounds(roundsList);
+      if (!selectedLeagueId) return;
+      
+      try {
+        const data = await getRounds(parseInt(selectedLeagueId), parseInt(selectedYear));
+        if (data && data.response) {
+          const roundsList = data.response.map(r => r.round);
+          setRounds(roundsList);
+        } else {
+          setRounds([]);
+          console.log('Nenhuma rodada disponível');
+        }
+      } catch (error) {
+        console.error('Erro ao buscar rodadas:', error);
+        setRounds([]);
       }
     };
     
     fetchRounds();
-  }, [selectedYear]);
+  }, [selectedYear, selectedLeagueId]);
   
   // Filtrar partidas com base em critérios
   const filterMatches = (matches: Match[]) => {
@@ -81,9 +114,14 @@ const BuscarPartidas = () => {
   
   // Buscar partidas com base nos filtros selecionados
   const handleSearch = async () => {
+    if (!selectedLeagueId) {
+      toast.error('Selecione uma liga');
+      return;
+    }
+    
     const params: Record<string, string | number> = {
-      league: BRAZIL_LEAGUE_ID,
-      season: selectedYear
+      league: parseInt(selectedLeagueId),
+      season: parseInt(selectedYear)
     };
     
     if (selectedRound && selectedRound !== 'all') {
@@ -94,9 +132,22 @@ const BuscarPartidas = () => {
       params.date = format(selectedDate, 'yyyy-MM-dd');
     }
     
-    const data = await getMatches(params);
-    if (data && data.response) {
-      setMatches(data.response);
+    try {
+      const data = await getMatches(params);
+      if (data && data.response) {
+        setMatches(data.response);
+        console.log('Partidas carregadas:', data.response);
+        
+        if (data.response.length === 0) {
+          toast.info('Nenhuma partida encontrada com os filtros selecionados');
+        }
+      } else {
+        setMatches([]);
+        toast.error('Erro ao buscar partidas');
+      }
+    } catch (error) {
+      console.error('Erro ao buscar partidas:', error);
+      toast.error('Erro ao buscar partidas');
     }
   };
   
@@ -229,6 +280,29 @@ const BuscarPartidas = () => {
                   {years.map(year => (
                     <SelectItem key={year} value={year}>
                       {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Liga</label>
+              <Select value={selectedLeagueId} onValueChange={setSelectedLeagueId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a liga" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="71">Campeonato Brasileiro - Série A</SelectItem>
+                  <SelectItem value="72">Campeonato Brasileiro - Série B</SelectItem>
+                  <SelectItem value="73">Copa do Brasil</SelectItem>
+                  <SelectItem value="39">Premier League</SelectItem>
+                  <SelectItem value="140">La Liga</SelectItem>
+                  <SelectItem value="135">Serie A</SelectItem>
+                  <SelectItem value="78">Bundesliga</SelectItem>
+                  {leagues.map(league => (
+                    <SelectItem key={league.league.id} value={league.league.id.toString()}>
+                      {league.league.name} - {league.country.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

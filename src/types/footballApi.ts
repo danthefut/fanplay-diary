@@ -50,22 +50,6 @@ export interface Match {
   score: Score;
 }
 
-export interface FootballApiResponse {
-  get: string;
-  parameters: Record<string, string>;
-  errors: string[];
-  results: number;
-  paging: {
-    current: number;
-    total: number;
-  };
-  response: Match[];
-}
-
-export interface Season {
-  year: number;
-}
-
 export interface League {
   id: number;
   name: string;
@@ -84,23 +68,15 @@ export interface LeagueResponse {
   seasons: Season[];
 }
 
-export interface LeaguesApiResponse {
-  get: string;
-  parameters: Record<string, string>;
-  errors: string[];
-  results: number;
-  paging: {
-    current: number;
-    total: number;
-  };
-  response: LeagueResponse[];
+export interface Season {
+  year: number;
 }
 
 export interface Round {
   round: string;
 }
 
-export interface RoundsApiResponse {
+export interface FootballApiResponse<T> {
   get: string;
   parameters: Record<string, string>;
   errors: string[];
@@ -109,5 +85,5 @@ export interface RoundsApiResponse {
     current: number;
     total: number;
   };
-  response: Round[];
+  response: T[];
 }

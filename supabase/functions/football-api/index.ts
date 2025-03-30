@@ -16,28 +16,27 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const endpoint = url.searchParams.get('endpoint');
-    const params = {};
+    const { endpoint, params } = await req.json();
     
-    // Extrair todos os parâmetros da solicitação
-    for (const [key, value] of url.searchParams.entries()) {
-      if (key !== 'endpoint') {
-        params[key] = value;
-      }
+    if (!endpoint) {
+      throw new Error('Endpoint não especificado');
     }
-
+    
     console.log(`Buscando dados da API Football: ${endpoint}`, params);
 
     // Construir a URL da API com os parâmetros
-    let apiUrl = `${API_URL}/${endpoint}?`;
-    for (const [key, value] of Object.entries(params)) {
-      apiUrl += `${key}=${value}&`;
+    let apiUrl = `${API_URL}/${endpoint}`;
+    
+    if (params && Object.keys(params).length > 0) {
+      const searchParams = new URLSearchParams();
+      for (const [key, value] of Object.entries(params)) {
+        searchParams.append(key, String(value));
+      }
+      apiUrl += `?${searchParams.toString()}`;
     }
     
-    // Remover o último '&'
-    apiUrl = apiUrl.slice(0, -1);
-
+    console.log(`URL completa: ${apiUrl}`);
+    
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -46,6 +45,7 @@ serve(async (req) => {
     });
 
     const data = await response.json();
+    console.log('Resposta da API:', data);
     
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

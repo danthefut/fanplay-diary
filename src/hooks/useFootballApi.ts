@@ -1,12 +1,12 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { FootballApiResponse } from '@/types/footballApi';
+import { FootballApiResponse, Match, LeagueResponse, Round } from '@/types/footballApi';
 
 export const useFootballApi = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchFromFootballApi = async <T>(
+  const fetchFromFootballApi = async <T extends any>(
     endpoint: string, 
     params?: Record<string, string | number>
   ): Promise<FootballApiResponse<T> | null> => {
@@ -25,7 +25,8 @@ export const useFootballApi = () => {
       
       const { data, error } = await supabase.functions.invoke('football-api', {
         body: {
-          endpoint: `${endpoint}${queryString}`
+          endpoint,
+          params
         }
       });
       
@@ -44,13 +45,13 @@ export const useFootballApi = () => {
   };
 
   const getMatches = (params?: Record<string, string | number>) => 
-    fetchFromFootballApi('fixtures', params);
+    fetchFromFootballApi<Match>('fixtures', params);
   
   const getLeagues = (params?: Record<string, string | number>) => 
-    fetchFromFootballApi('leagues', params);
+    fetchFromFootballApi<LeagueResponse>('leagues', params);
   
   const getRounds = (leagueId: number, season: number) => 
-    fetchFromFootballApi('fixtures/rounds', { league: leagueId, season });
+    fetchFromFootballApi<Round>('fixtures/rounds', { league: leagueId, season });
 
   return {
     isLoading,
