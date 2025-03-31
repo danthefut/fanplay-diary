@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useFootballApi } from '@/hooks/useFootballApi';
 import { Match } from '@/types/footballApi';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Search, Football, BallBasketball } from 'lucide-react';
+import { CalendarIcon, Search, Soccer, Basketball } from 'lucide-react';
 
 // Define o status da partida em português
 const getMatchStatus = (match: Match) => {
@@ -209,7 +209,7 @@ const BuscarPartidas = () => {
             onClick={() => setSportType('football')}
             className="flex items-center gap-2"
           >
-            <Football size={18} />
+            <Soccer size={18} />
             Futebol
           </TabsTrigger>
           <TabsTrigger 
@@ -217,7 +217,7 @@ const BuscarPartidas = () => {
             onClick={() => setSportType('basketball')}
             className="flex items-center gap-2"
           >
-            <BallBasketball size={18} />
+            <Basketball size={18} />
             Basquete
           </TabsTrigger>
         </TabsList>
