@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -10,12 +10,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useFootballApi } from '@/hooks/useFootballApi';
 import { Match, League, TeamInfo } from '@/types/footballApi';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Search, Trophy, CircleUser, FilterX } from 'lucide-react';
+import { CalendarIcon, Search, Trophy, CircleUser, FilterX, AlertCircle } from 'lucide-react';
 import { toast } from "sonner";
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import LeagueFilter from '@/components/LeagueFilter';
 import TeamFilter from '@/components/TeamFilter';
 import MatchList from '@/components/MatchList';
+
+const CURRENT_YEAR = 2023; // Forçar 2023 como ano atual para API gratuita
 
 const BuscarPartidas = () => {
   const navigate = useNavigate();
@@ -33,128 +36,144 @@ const BuscarPartidas = () => {
   const [selectedTeams, setSelectedTeams] = useState<number[]>([]);
   const [isLoadingLeagues, setIsLoadingLeagues] = useState(false);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
 
-  // Buscar ligas disponíveis
+  // Função para mostrar uma mensagem de aviso sobre limitações da API
   useEffect(() => {
-    const fetchLeagues = async () => {
-      setIsLoadingLeagues(true);
-      const currentYear = new Date().getFullYear();
+    if (isFirstLoad) {
+      toast.info(
+        "API gratuita: limitada a temporada 2023 e número de requisições diárias", 
+        { duration: 5000 }
+      );
+      setIsFirstLoad(false);
+    }
+  }, [isFirstLoad]);
+
+  // Buscar ligas disponíveis com limitação
+  const fetchLeagues = useCallback(async () => {
+    if (isLoadingLeagues) return;
+    
+    setIsLoadingLeagues(true);
+    setError(null);
+    
+    try {
+      const leaguesResponse = await getLeagues({ current: 'true', season: CURRENT_YEAR }, sportType);
       
-      try {
-        const leaguesResponse = await getLeagues({ current: 'true', season: currentYear }, sportType);
+      if (leaguesResponse && leaguesResponse.response) {
+        // Extrair as ligas das respostas da API
+        const leaguesData = leaguesResponse.response.map(item => item.league);
         
-        if (leaguesResponse && leaguesResponse.response) {
-          // Extrair as ligas das respostas da API
-          const leaguesData = leaguesResponse.response.map(item => item.league);
-          
-          // Ordenar ligas por nome
-          const sortedLeagues = leaguesData.sort((a, b) => a.name.localeCompare(b.name));
-          
-          setLeagues(sortedLeagues);
+        // Ordenar ligas por nome
+        const sortedLeagues = leaguesData.sort((a, b) => a.name.localeCompare(b.name));
+        
+        setLeagues(sortedLeagues);
+      } else {
+        // Se não temos resposta, mas não temos erro explícito
+        if (!leaguesResponse) {
+          setError('Não foi possível carregar as ligas. Verifique sua conexão.');
         }
-      } catch (error) {
-        console.error('Erro ao buscar ligas:', error);
-        toast.error('Não foi possível carregar as ligas disponíveis');
-      } finally {
-        setIsLoadingLeagues(false);
       }
-    };
+    } catch (error) {
+      console.error('Erro ao buscar ligas:', error);
+      setError('Erro ao carregar ligas: ' + (error instanceof Error ? error.message : 'Desconhecido'));
+    } finally {
+      setIsLoadingLeagues(false);
+    }
+  }, [sportType, getLeagues, isLoadingLeagues]);
 
-    fetchLeagues();
-  }, [sportType, getLeagues]);
+  // Buscar times com base nas ligas selecionadas (com limitação)
+  const fetchTeams = useCallback(async () => {
+    if (selectedLeagues.length === 0) {
+      setTeams([]);
+      return;
+    }
 
-  // Buscar times com base nas ligas selecionadas
-  useEffect(() => {
-    const fetchTeams = async () => {
-      if (selectedLeagues.length === 0) {
-        setTeams([]);
-        return;
-      }
+    if (isLoadingTeams) return;
+    
+    setIsLoadingTeams(true);
+    setError(null);
+    
+    const allTeams: TeamInfo[] = [];
 
-      setIsLoadingTeams(true);
-      const currentYear = new Date().getFullYear();
-      const allTeams: TeamInfo[] = [];
-
-      try {
-        // Buscar times para cada liga selecionada
-        for (const leagueId of selectedLeagues) {
-          const teamsResponse = await getTeams({ league: leagueId, season: currentYear }, sportType);
-          
-          if (teamsResponse && teamsResponse.response) {
-            const teamsData = teamsResponse.response.map(item => item.team);
-            allTeams.push(...teamsData);
-          }
-        }
-
-        // Remover times duplicados usando Set e Map
-        const uniqueTeams = Array.from(
-          new Map(allTeams.map(team => [team.id, team])).values()
-        );
-
+    try {
+      // Limitar buscas para apenas a primeira liga selecionada para economizar requisições
+      const leagueToFetch = selectedLeagues[0];
+      
+      const teamsResponse = await getTeams({ league: leagueToFetch, season: CURRENT_YEAR }, sportType);
+      
+      if (teamsResponse && teamsResponse.response) {
+        const teamsData = teamsResponse.response.map(item => item.team);
+        allTeams.push(...teamsData);
+        
         // Ordenar times por nome
-        const sortedTeams = uniqueTeams.sort((a, b) => a.name.localeCompare(b.name));
-        
+        const sortedTeams = allTeams.sort((a, b) => a.name.localeCompare(b.name));
         setTeams(sortedTeams);
-      } catch (error) {
-        console.error('Erro ao buscar times:', error);
-        toast.error('Não foi possível carregar os times disponíveis');
-      } finally {
-        setIsLoadingTeams(false);
       }
-    };
+    } catch (error) {
+      console.error('Erro ao buscar times:', error);
+      setError('Erro ao carregar times: ' + (error instanceof Error ? error.message : 'Desconhecido'));
+    } finally {
+      setIsLoadingTeams(false);
+    }
+  }, [selectedLeagues, sportType, getTeams, isLoadingTeams]);
 
-    fetchTeams();
-  }, [selectedLeagues, sportType, getTeams]);
-
-  // Buscar partidas com base nos filtros
+  // Carregar ligas ao mudar o tipo de esporte
   useEffect(() => {
-    const fetchMatches = async () => {
-      if (date) {
-        const formattedDate = format(date, 'yyyy-MM-dd');
-        
-        // Construir objeto de parâmetros com todos os filtros aplicáveis
-        const params: Record<string, string | number> = { date: formattedDate };
-        
-        // Adicionar filtros de liga se houver
-        if (selectedLeagues.length === 1) {
-          params.league = selectedLeagues[0];
-        } else if (selectedLeagues.length > 1) {
-          // A API de futebol suporta ligas como lista separada por hífens
-          params.league = selectedLeagues.join('-');
-        }
-        
-        // Adicionar filtros de time se houver
-        if (selectedTeams.length === 1) {
-          params.team = selectedTeams[0];
-        } else if (selectedTeams.length > 1) {
-          // A API suporta times como lista separada por hífens
-          params.team = selectedTeams.join('-');
-        }
-        
-        const response = await getMatches(params, sportType);
-        
-        if (response && response.response) {
-          // Se temos uma resposta com erro de limite de taxa, mostrar uma notificação
-          if (response.errors && response.errors.rateLimit) {
-            toast.error("Limite de requisições excedido. Tente novamente mais tarde.");
-            return;
-          }
-          
-          let matchesData = response.response;
+    fetchLeagues();
+  }, [sportType, fetchLeagues]);
 
-          // Ordenar partidas por horário
-          matchesData = matchesData.sort((a, b) => {
-            return new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime();
-          });
-          
-          setMatches(matchesData);
-          setFilteredMatches(matchesData);
-        }
+  // Buscar times ao selecionar ligas
+  useEffect(() => {
+    fetchTeams();
+  }, [selectedLeagues, fetchTeams]);
+
+  // Buscar partidas com base nos filtros (com limitações)
+  const fetchMatches = useCallback(async () => {
+    if (!date) return;
+    
+    setError(null);
+    
+    const formattedDate = format(date, 'yyyy-MM-dd');
+    
+    // Construir objeto de parâmetros com todos os filtros aplicáveis
+    const params: Record<string, string | number> = { date: formattedDate };
+    
+    // Adicionar filtros de liga se houver (limitando a 1 liga para economizar requisições)
+    if (selectedLeagues.length > 0) {
+      params.league = selectedLeagues[0];
+    }
+    
+    // Adicionar filtros de time se houver (limitando a 1 time para economizar requisições)
+    if (selectedTeams.length > 0) {
+      params.team = selectedTeams[0];
+    }
+    
+    const response = await getMatches(params, sportType);
+    
+    if (response && response.response) {
+      let matchesData = response.response;
+
+      // Ordenar partidas por horário
+      matchesData = matchesData.sort((a, b) => {
+        return new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime();
+      });
+      
+      setMatches(matchesData);
+      setFilteredMatches(matchesData);
+    } else {
+      // Se a resposta falhou mas não foi por erro de limite (que já mostra toast)
+      if (!response) {
+        setMatches([]);
+        setFilteredMatches([]);
       }
-    };
-
-    fetchMatches();
+    }
   }, [date, sportType, selectedLeagues, selectedTeams, getMatches]);
+
+  // Buscar partidas quando os filtros mudam
+  useEffect(() => {
+    fetchMatches();
+  }, [fetchMatches]);
 
   // Filtrar partidas por pesquisa de texto
   useEffect(() => {
@@ -183,19 +202,13 @@ const BuscarPartidas = () => {
   };
 
   const handleSelectLeague = (leagueId: number) => {
-    setSelectedLeagues(prev => 
-      prev.includes(leagueId)
-        ? prev.filter(id => id !== leagueId)
-        : [...prev, leagueId]
-    );
+    // Permitir apenas uma liga selecionada para economizar requisições
+    setSelectedLeagues([leagueId]);
   };
 
   const handleSelectTeam = (teamId: number) => {
-    setSelectedTeams(prev => 
-      prev.includes(teamId)
-        ? prev.filter(id => id !== teamId)
-        : [...prev, teamId]
-    );
+    // Permitir apenas um time selecionado para economizar requisições
+    setSelectedTeams([teamId]);
   };
 
   const handleClearLeagues = () => {
@@ -215,9 +228,32 @@ const BuscarPartidas = () => {
   // Determinar se há algum filtro ativo
   const hasActiveFilters = selectedLeagues.length > 0 || selectedTeams.length > 0 || searchQuery.trim() !== '';
 
+  // Função para forçar nova busca
+  const handleRefresh = () => {
+    setError(null);
+    fetchMatches();
+  };
+
   return (
     <div className="container px-4 py-8 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-center">Buscar Partidas</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">Buscar Partidas</h1>
+      
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erro</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <Alert className="mb-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Limitações da API Gratuita</AlertTitle>
+        <AlertDescription>
+          Esta demonstração usa a versão gratuita da API-Sports que tem acesso apenas a dados 
+          de 2023 e um número limitado de requisições diárias.
+        </AlertDescription>
+      </Alert>
       
       <Tabs defaultValue="football" className="mb-8">
         <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -291,6 +327,7 @@ const BuscarPartidas = () => {
               selectedLeagues={selectedLeagues}
               onSelectLeague={handleSelectLeague}
               onClearLeagues={handleClearLeagues}
+              isLoading={isLoadingLeagues}
             />
           </div>
           
@@ -300,12 +337,14 @@ const BuscarPartidas = () => {
               selectedTeams={selectedTeams}
               onSelectTeam={handleSelectTeam}
               onClearTeams={handleClearTeams}
+              isLoading={isLoadingTeams}
+              disabled={selectedLeagues.length === 0}
             />
           </div>
         </div>
         
-        {hasActiveFilters && (
-          <div className="flex justify-end">
+        <div className="flex justify-between">
+          {hasActiveFilters && (
             <Button 
               variant="outline" 
               size="sm" 
@@ -315,8 +354,17 @@ const BuscarPartidas = () => {
               <FilterX size={16} className="mr-1" />
               Limpar filtros
             </Button>
-          </div>
-        )}
+          )}
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            className="ml-auto"
+          >
+            Atualizar
+          </Button>
+        </div>
       </div>
       
       {isLoading ? (
@@ -334,10 +382,13 @@ const BuscarPartidas = () => {
           <p className="text-xl text-muted-foreground">
             Nenhuma partida encontrada.
           </p>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-4">
             {hasActiveFilters ? 
               'Tente modificar os filtros aplicados.' : 
               'Tente selecionar outra data ou mudar os critérios de busca.'}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Nota: A API gratuita tem limite diário de requisições e acesso apenas à temporada 2023.
           </p>
         </div>
       )}

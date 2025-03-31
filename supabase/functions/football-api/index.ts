@@ -23,7 +23,16 @@ serve(async (req) => {
       throw new Error('Endpoint não especificado');
     }
     
-    console.log(`Buscando dados da API ${sport === 'football' ? 'Football' : 'Basketball'}: ${endpoint}`, params);
+    // Validação de temporada para evitar erros no plano gratuito
+    let validatedParams = { ...params };
+    
+    // Se estivermos usando o plano gratuito e a temporada for maior que 2023, ajuste para 2023
+    if (params && params.season && Number(params.season) > 2023) {
+      console.log(`Ajustando temporada de ${params.season} para 2023 (limite do plano gratuito)`);
+      validatedParams.season = 2023;
+    }
+    
+    console.log(`Buscando dados da API ${sport === 'football' ? 'Football' : 'Basketball'}: ${endpoint}`, validatedParams);
 
     // Determinar qual URL da API usar com base no esporte
     const baseUrl = sport === 'football' ? API_URL : BASKETBALL_API_URL;
@@ -31,9 +40,9 @@ serve(async (req) => {
     // Construir a URL da API com os parâmetros
     let apiUrl = `${baseUrl}/${endpoint}`;
     
-    if (params && Object.keys(params).length > 0) {
+    if (validatedParams && Object.keys(validatedParams).length > 0) {
       const searchParams = new URLSearchParams();
-      for (const [key, value] of Object.entries(params)) {
+      for (const [key, value] of Object.entries(validatedParams)) {
         searchParams.append(key, String(value));
       }
       apiUrl += `?${searchParams.toString()}`;
@@ -49,12 +58,30 @@ serve(async (req) => {
     });
 
     const data = await response.json();
-    console.log('Resposta da API:', data);
+    
+    // Adicionar informações para debug no lado do cliente
+    if (data.errors && Object.keys(data.errors).length > 0) {
+      console.log('Erro na resposta da API:', data.errors);
+    } else {
+      console.log(`Resposta da API ${endpoint} bem-sucedida: ${data.results} resultados`);
+    }
     
     // Se recebemos erro de limite de taxa, adicionar cabeçalho de retry-after
     let responseHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
-    if (data.errors && data.errors.rateLimit) {
+    if (data.errors && (data.errors.rateLimit || data.errors.requests)) {
       responseHeaders['Retry-After'] = '60'; // Sugerir retry após 60 segundos
+      
+      // Para problemas de limite de requisições, enviar resposta personalizada com mensagem clara
+      if (data.errors.requests) {
+        return new Response(JSON.stringify({
+          error: true,
+          message: "Limite de requisições diárias atingido. Por favor, tente novamente amanhã.",
+          originalError: data.errors.requests
+        }), {
+          status: 429,
+          headers: responseHeaders,
+        });
+      }
     }
     
     return new Response(JSON.stringify(data), {
