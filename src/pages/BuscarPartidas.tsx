@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -10,9 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useFootballApi } from '@/hooks/useFootballApi';
 import { Match } from '@/types/footballApi';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Search, Soccer, Basketball } from 'lucide-react';
+import { CalendarIcon, Search, Football, Store } from 'lucide-react';
 
-// Define o status da partida em português
 const getMatchStatus = (match: Match) => {
   const statusMap: Record<string, string> = {
     'NS': 'Não iniciado',
@@ -53,7 +51,6 @@ const BuscarPartidas = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredMatches, setFilteredMatches] = useState<Match[]>([]);
 
-  // Busca partidas quando a página é carregada ou quando o tipo de esporte ou a data muda
   useEffect(() => {
     const fetchMatches = async () => {
       if (date) {
@@ -62,17 +59,14 @@ const BuscarPartidas = () => {
         const response = await getMatches(params, sportType);
         
         if (response && response.response) {
-          // Filtra as ligas de acordo com o esporte
           let filteredMatches: Match[] = [];
           
           if (sportType === 'football') {
-            // Ligas principais de futebol (incluindo Brasileirão e Copa do Mundo)
             const majorLeagueIds = [1, 2, 3, 4, 5, 39, 71, 135, 140, 61, 78, 1];
             filteredMatches = response.response.filter(match => 
               majorLeagueIds.includes(match.league.id)
             );
           } else {
-            // NBA e outras ligas de basquete
             filteredMatches = response.response;
           }
           
@@ -85,7 +79,6 @@ const BuscarPartidas = () => {
     fetchMatches();
   }, [date, sportType, getMatches]);
 
-  // Filtra partidas com base na pesquisa
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredMatches(matches);
@@ -111,7 +104,6 @@ const BuscarPartidas = () => {
     });
   };
 
-  // Renderiza uma partida
   const renderMatch = (match: Match) => {
     const matchDate = new Date(match.fixture.date);
     const formattedDate = format(matchDate, "dd 'de' MMMM 'de' yyyy, HH:mm", { locale: ptBR });
@@ -209,7 +201,7 @@ const BuscarPartidas = () => {
             onClick={() => setSportType('football')}
             className="flex items-center gap-2"
           >
-            <Soccer size={18} />
+            <Football size={18} />
             Futebol
           </TabsTrigger>
           <TabsTrigger 
@@ -217,7 +209,7 @@ const BuscarPartidas = () => {
             onClick={() => setSportType('basketball')}
             className="flex items-center gap-2"
           >
-            <Basketball size={18} />
+            <Store size={18} />
             Basquete
           </TabsTrigger>
         </TabsList>
