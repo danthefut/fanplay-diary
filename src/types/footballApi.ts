@@ -83,10 +83,25 @@ export interface Round {
   round: string;
 }
 
+export interface TeamInfo {
+  id: number;
+  name: string;
+  code: string;
+  country: string;
+  founded: number;
+  national: boolean;
+  logo: string;
+}
+
+export interface TeamResponse {
+  team: TeamInfo;
+  venue: Venue;
+}
+
 export interface FootballApiResponse<T> {
   get: string;
   parameters: Record<string, string>;
-  errors: string[];
+  errors: Record<string, string>;
   results: number;
   paging: {
     current: number;

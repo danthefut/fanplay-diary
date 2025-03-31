@@ -1,7 +1,8 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { FootballApiResponse, Match, LeagueResponse, Round } from '@/types/footballApi';
+import { FootballApiResponse, Match, LeagueResponse, Round, TeamResponse } from '@/types/footballApi';
+import { toast } from "sonner";
 
 export const useFootballApi = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -26,6 +27,14 @@ export const useFootballApi = () => {
       
       if (error) {
         console.error(`Erro ao chamar API de ${sport === 'football' ? 'futebol' : 'basquete'}:`, error);
+        toast.error(`Erro ao buscar dados: ${error.message}`);
+        return null;
+      }
+      
+      if (data && data.errors && Object.keys(data.errors).length > 0) {
+        const errorMessage = data.errors.rateLimit || Object.values(data.errors)[0];
+        console.error(`Erro na resposta da API:`, errorMessage);
+        toast.error(`Limite de requisições excedido. Tente novamente mais tarde.`);
         return null;
       }
       
@@ -33,6 +42,7 @@ export const useFootballApi = () => {
       return data as FootballApiResponse<T>;
     } catch (error) {
       console.error(`Erro em fetchFromSportsApi (${sport}):`, error);
+      toast.error(`Erro inesperado: ${error instanceof Error ? error.message : 'Desconhecido'}`);
       return null;
     } finally {
       setIsLoading(false);
@@ -48,10 +58,14 @@ export const useFootballApi = () => {
   const getRounds = (leagueId: number, season: number, sport: 'football' | 'basketball' = 'football') => 
     fetchFromSportsApi<Round>('fixtures/rounds', { league: leagueId, season }, sport);
 
+  const getTeams = (params?: Record<string, string | number>, sport: 'football' | 'basketball' = 'football') => 
+    fetchFromSportsApi<TeamResponse>('teams', params, sport);
+
   return {
     isLoading,
     getMatches,
     getLeagues,
-    getRounds
+    getRounds,
+    getTeams
   };
 };
