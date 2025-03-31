@@ -18,12 +18,19 @@ export interface Score {
   penalty: Goals;
 }
 
+export interface Venue {
+  id: number;
+  name: string;
+  city: string;
+}
+
 export interface Fixture {
   id: number;
   referee: string | null;
   timezone: string;
   date: string;
   timestamp: number;
+  venue: Venue;
   status: {
     long: string;
     short: string;

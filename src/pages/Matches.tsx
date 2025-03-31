@@ -73,6 +73,23 @@ const Matches = () => {
   
   // Converter objetos Match para o formato MatchCard
   const convertMatchToCardProps = (match: Match) => {
+    // Determinar o status baseado no status da partida
+    let status: "upcoming" | "live" | "finished";
+    
+    if (match.fixture.status.short === 'NS') {
+      status = "upcoming";
+    } else if (match.fixture.status.short === '1H' || 
+               match.fixture.status.short === '2H' || 
+               match.fixture.status.short === 'HT' || 
+               match.fixture.status.short === 'Q1' || 
+               match.fixture.status.short === 'Q2' || 
+               match.fixture.status.short === 'Q3' || 
+               match.fixture.status.short === 'Q4') {
+      status = "live";
+    } else {
+      status = "finished";
+    }
+    
     return {
       id: match.fixture.id.toString(),
       homeTeam: {
@@ -87,13 +104,7 @@ const Matches = () => {
       },
       date: match.fixture.date,
       competition: match.league.name,
-      status: match.fixture.status.short === 'NS' 
-        ? 'upcoming' 
-        : (match.fixture.status.short === '1H' || match.fixture.status.short === '2H' || match.fixture.status.short === 'HT' || 
-           match.fixture.status.short === 'Q1' || match.fixture.status.short === 'Q2' || 
-           match.fixture.status.short === 'Q3' || match.fixture.status.short === 'Q4')
-          ? 'live'
-          : 'finished',
+      status: status,
       averageRating: Math.random() * 2 + 3 // Placeholder para avaliações (3-5 estrelas)
     };
   };
