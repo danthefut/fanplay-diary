@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useFootballApi } from '@/hooks/useFootballApi';
 import { Match } from '@/types/footballApi';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Search, Football, Store } from 'lucide-react';
+import { CalendarIcon, Search, Trophy, CircleUser } from 'lucide-react';
 
 const getMatchStatus = (match: Match) => {
   const statusMap: Record<string, string> = {
@@ -201,7 +201,7 @@ const BuscarPartidas = () => {
             onClick={() => setSportType('football')}
             className="flex items-center gap-2"
           >
-            <Football size={18} />
+            <Trophy size={18} />
             Futebol
           </TabsTrigger>
           <TabsTrigger 
@@ -209,7 +209,7 @@ const BuscarPartidas = () => {
             onClick={() => setSportType('basketball')}
             className="flex items-center gap-2"
           >
-            <Store size={18} />
+            <CircleUser size={18} />
             Basquete
           </TabsTrigger>
         </TabsList>
