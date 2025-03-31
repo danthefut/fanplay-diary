@@ -117,8 +117,9 @@ export const useFootballApi = () => {
     }
   };
 
+  // Para basquete, usamos 'games' em vez de 'fixtures'
   const getMatches = (params?: Record<string, string | number>, sport: 'football' | 'basketball' = 'football') => 
-    fetchFromSportsApi<Match>('fixtures', params, sport);
+    fetchFromSportsApi<Match>(sport === 'football' ? 'fixtures' : 'games', params, sport);
   
   const getLeagues = (params?: Record<string, string | number>, sport: 'football' | 'basketball' = 'football') => 
     fetchFromSportsApi<LeagueResponse>('leagues', params, sport);

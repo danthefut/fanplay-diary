@@ -2,8 +2,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const FOOTBALL_API_KEY = Deno.env.get('FOOTBALL_API_KEY');
-const API_URL = "https://v3.football.api-sports.io";
-const BASKETBALL_API_URL = "https://v1.basketball.api-sports.io"; // Changed to v1 API
+const FOOTBALL_API_URL = "https://v3.football.api-sports.io";
+const BASKETBALL_API_URL = "https://v1.basketball.api-sports.io";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,14 +34,38 @@ serve(async (req) => {
     
     console.log(`Buscando dados da API ${sport === 'football' ? 'Football' : 'Basketball'}: ${endpoint}`, validatedParams);
 
+    // Mapeamento de endpoints para basquete
+    let basketballEndpoint = endpoint;
+    if (sport === 'basketball') {
+      // Mapear endpoints de futebol para os equivalentes de basquete
+      const endpointMap = {
+        'fixtures': 'games',
+        'leagues': 'leagues',
+        'teams': 'teams'
+      };
+      
+      basketballEndpoint = endpointMap[endpoint] || endpoint;
+      console.log(`Mapeando endpoint de futebol '${endpoint}' para endpoint de basquete '${basketballEndpoint}'`);
+    }
+    
     // Determinar qual URL da API usar com base no esporte
-    const baseUrl = sport === 'football' ? API_URL : BASKETBALL_API_URL;
+    const baseUrl = sport === 'football' ? FOOTBALL_API_URL : BASKETBALL_API_URL;
+    const apiEndpoint = sport === 'football' ? endpoint : basketballEndpoint;
     
     // Construir a URL da API com os parâmetros
-    let apiUrl = `${baseUrl}/${endpoint}`;
+    let apiUrl = `${baseUrl}/${apiEndpoint}`;
     
     if (validatedParams && Object.keys(validatedParams).length > 0) {
       const searchParams = new URLSearchParams();
+      
+      // Converter parâmetros de futebol para basquete, se necessário
+      if (sport === 'basketball') {
+        // Para basquete, "date" se torna "date" (mesmo formato)
+        // Para basquete, "league" se torna "league" (mesmo nome)
+        // Para basquete, "team" se torna "team" (mesmo nome)
+        // Não precisamos mapear aqui, apenas manter os mesmos nomes
+      }
+      
       for (const [key, value] of Object.entries(validatedParams)) {
         searchParams.append(key, String(value));
       }
