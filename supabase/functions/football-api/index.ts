@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const FOOTBALL_API_KEY = Deno.env.get('FOOTBALL_API_KEY');
 const API_URL = "https://v3.football.api-sports.io";
-const BASKETBALL_API_URL = "https://v3.basketball.api-sports.io";
+const BASKETBALL_API_URL = "https://v1.basketball.api-sports.io"; // Changed to v1 API
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

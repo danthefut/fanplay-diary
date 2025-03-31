@@ -1,110 +1,130 @@
 
 import React from 'react';
-import { Check, ChevronDown, Search } from 'lucide-react';
-import { 
-  DropdownMenu, 
-  DropdownMenuTrigger, 
-  DropdownMenuContent, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuItem, 
-  DropdownMenuCheckboxItem 
-} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Check, ChevronsUpDown, Loader2, X } from 'lucide-react';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { TeamInfo } from '@/types/footballApi';
 
-interface TeamFilterProps {
+export interface TeamFilterProps {
   teams: TeamInfo[];
   selectedTeams: number[];
   onSelectTeam: (teamId: number) => void;
   onClearTeams: () => void;
+  isLoading?: boolean; // Added isLoading prop
+  disabled?: boolean;
 }
 
-const TeamFilter = ({ teams, selectedTeams, onSelectTeam, onClearTeams }: TeamFilterProps) => {
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const selectedCount = selectedTeams.length;
-  const hasSelectedTeams = selectedCount > 0;
-  
-  const filteredTeams = React.useMemo(() => {
-    if (!searchQuery.trim()) return teams;
-    
-    const query = searchQuery.toLowerCase();
-    return teams.filter(team => 
-      team.name.toLowerCase().includes(query) || 
-      team.country.toLowerCase().includes(query)
-    );
-  }, [teams, searchQuery]);
-  
+const TeamFilter = ({ 
+  teams, 
+  selectedTeams, 
+  onSelectTeam, 
+  onClearTeams,
+  isLoading = false, // Default value
+  disabled = false
+}: TeamFilterProps) => {
+  const [open, setOpen] = React.useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button 
-          variant="outline" 
-          className="w-full flex justify-between items-center"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          disabled={disabled}
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
         >
-          <span className="truncate">
-            {hasSelectedTeams 
-              ? `${selectedCount} time${selectedCount > 1 ? 's' : ''} selecionado${selectedCount > 1 ? 's' : ''}` 
-              : 'Selecionar times'}
-          </span>
-          <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+          {selectedTeams.length > 0 ? (
+            <div className="flex items-center gap-1 truncate">
+              <span>
+                {teams.find(team => team.id === selectedTeams[0])?.name || 'Time selecionado'}
+              </span>
+              {selectedTeams.length > 1 && <span>+{selectedTeams.length - 1}</span>}
+            </div>
+          ) : (
+            "Selecione os times"
+          )}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 max-h-[300px] overflow-y-auto">
-        <DropdownMenuLabel>Times</DropdownMenuLabel>
-        <div className="px-2 py-1.5">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar times..."
-              className="pl-8 h-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
-        <DropdownMenuSeparator />
-        
-        {hasSelectedTeams && (
-          <DropdownMenuItem 
-            className="text-destructive focus:text-destructive"
-            onClick={onClearTeams}
-          >
-            Limpar seleção
-          </DropdownMenuItem>
-        )}
-        
-        {filteredTeams.length > 0 ? (
-          filteredTeams.map((team) => (
-            <DropdownMenuCheckboxItem
-              key={team.id}
-              checked={selectedTeams.includes(team.id)}
-              onSelect={(e) => e.preventDefault()}
-              onClick={() => onSelectTeam(team.id)}
-            >
-              <div className="flex items-center gap-2 w-full">
-                {team.logo && (
-                  <img 
-                    src={team.logo} 
-                    alt={team.name} 
-                    className="w-5 h-5 object-contain" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/placeholder.svg';
-                    }}
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar times..." />
+          <CommandList>
+            <CommandEmpty>
+              {isLoading ? (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span>Carregando times...</span>
+                </div>
+              ) : (
+                "Nenhum time encontrado"
+              )}
+            </CommandEmpty>
+            <CommandGroup>
+              {teams.map((team) => (
+                <CommandItem
+                  key={team.id}
+                  value={team.name}
+                  onSelect={() => {
+                    onSelectTeam(team.id);
+                    setOpen(false);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  {team.logo && (
+                    <img 
+                      src={team.logo} 
+                      alt={team.name} 
+                      className="w-5 h-5 object-contain" 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/placeholder.svg';
+                      }}
+                    />
+                  )}
+                  <span>{team.name}</span>
+                  <Check
+                    className={cn(
+                      "ml-auto h-4 w-4",
+                      selectedTeams.includes(team.id) ? "opacity-100" : "opacity-0"
+                    )}
                   />
-                )}
-                <span className="truncate">{team.name}</span>
-              </div>
-            </DropdownMenuCheckboxItem>
-          ))
-        ) : (
-          <DropdownMenuItem disabled>
-            {searchQuery ? 'Nenhum time encontrado' : 'Nenhum time disponível'}
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+          {selectedTeams.length > 0 && (
+            <div className="flex items-center justify-end p-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  onClearTeams();
+                }}
+                className="h-8 text-xs"
+              >
+                <X className="mr-1 h-3 w-3" />
+                Limpar seleção
+              </Button>
+            </div>
+          )}
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 };
 
