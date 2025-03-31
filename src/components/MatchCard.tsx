@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { Calendar, Star, StarHalf } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export interface MatchCardProps {
   id: string;
@@ -37,11 +39,11 @@ const MatchCard = ({
   const getStatusBadge = () => {
     switch (status) {
       case 'upcoming':
-        return <Badge variant="outline" className="bg-muted">Upcoming</Badge>;
+        return <Badge variant="outline" className="bg-muted">Próxima</Badge>;
       case 'live':
-        return <Badge variant="destructive" className="animate-pulse-soft">LIVE</Badge>;
+        return <Badge variant="destructive" className="animate-pulse-soft">AO VIVO</Badge>;
       case 'finished':
-        return <Badge variant="secondary">Finished</Badge>;
+        return <Badge variant="secondary">Finalizada</Badge>;
       default:
         return null;
     }
@@ -68,7 +70,7 @@ const MatchCard = ({
       <div className={cn("match-card", isFeatured && "match-card-featured")}>
         {isFeatured && (
           <div className="absolute top-0 right-0 bg-accent text-accent-foreground text-xs font-bold px-2 py-1">
-            Featured
+            Destaque
           </div>
         )}
         
@@ -112,7 +114,7 @@ const MatchCard = ({
           </div>
           
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>{new Date(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+            <span>{format(new Date(date), "dd 'de' MMM", { locale: ptBR })}</span>
             {averageRating && (
               <div className="star-rating">
                 {renderStars(averageRating)}

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import StarRating from '@/components/StarRating';
 import { Button } from '@/components/ui/button';
@@ -9,13 +10,20 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar, Star, Trophy, Flag, Youtube, Share2, Heart } from 'lucide-react';
-import { allMatches, matchRatings, currentUser } from '@/data/mockData';
+import { matchRatings, currentUser } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { Match } from '@/types/footballApi';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 const MatchDetail = () => {
   const { id } = useParams();
-  const match = allMatches.find(m => m.id === id);
+  const navigate = useNavigate();
   const ratings = matchRatings.filter(r => r.matchId === id);
+  
+  const [match, setMatch] = useState<Match | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [userRating, setUserRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -24,12 +32,46 @@ const MatchDetail = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   
+  useEffect(() => {
+    // Tentar obter os dados da partida do localStorage
+    const storedMatch = localStorage.getItem('selectedMatch');
+    if (storedMatch) {
+      try {
+        const parsedMatch = JSON.parse(storedMatch) as Match;
+        if (parsedMatch.fixture.id.toString() === id) {
+          setMatch(parsedMatch);
+        } else {
+          toast.error('Partida não encontrada');
+          navigate('/buscar-partidas');
+        }
+      } catch (e) {
+        console.error('Erro ao parsear dados da partida:', e);
+        toast.error('Erro ao carregar detalhes da partida');
+      }
+    } else {
+      toast.error('Dados da partida não encontrados');
+      navigate('/buscar-partidas');
+    }
+    setIsLoading(false);
+  }, [id]);
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-xl">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (!match) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-xl">Match not found</p>
+          <p className="text-xl">Partida não encontrada</p>
         </div>
       </div>
     );
@@ -49,14 +91,22 @@ const MatchDetail = () => {
   const handleSubmitRating = (e: React.FormEvent) => {
     e.preventDefault();
     // In a real app, we would send this data to an API
-    alert(`Rating submitted: ${userRating} stars`);
+    toast.success(`Avaliação enviada: ${userRating} estrelas`);
   };
   
   const getMatchStatusClass = () => {
-    switch (match.status) {
-      case 'live':
+    switch (match.fixture.status.short) {
+      case '1H':
+      case '2H':
+      case 'HT':
+      case 'Q1':
+      case 'Q2':
+      case 'Q3':
+      case 'Q4':
         return 'bg-destructive text-destructive-foreground';
-      case 'finished':
+      case 'FT':
+      case 'AET':
+      case 'PEN':
         return 'bg-secondary text-secondary-foreground';
       default:
         return 'bg-muted text-muted-foreground';
@@ -64,34 +114,47 @@ const MatchDetail = () => {
   };
   
   const getMatchStatusText = () => {
-    switch (match.status) {
-      case 'live':
-        return 'LIVE';
-      case 'finished':
-        return 'Finished';
+    switch (match.fixture.status.short) {
+      case '1H':
+        return `${match.fixture.status.elapsed}' 1º Tempo`;
+      case '2H':
+        return `${match.fixture.status.elapsed}' 2º Tempo`;
+      case 'HT':
+        return 'Intervalo';
+      case 'FT':
+        return 'Finalizada';
+      case 'AET':
+        return 'Prorrogação';
+      case 'PEN':
+        return 'Pênaltis';
+      case 'Q1':
+        return '1º Quarto';
+      case 'Q2':
+        return '2º Quarto';
+      case 'Q3':
+        return '3º Quarto';
+      case 'Q4':
+        return '4º Quarto';
+      case 'OT':
+        return 'Tempo Extra';
+      case 'NS':
+        return 'Agendada';
       default:
-        return 'Upcoming';
+        return match.fixture.status.long;
     }
   };
   
   const formatMatchDate = () => {
-    const date = new Date(match.date);
-    return date.toLocaleDateString(undefined, { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const date = new Date(match.fixture.date);
+    return format(date, "EEEE, dd 'de' MMMM 'de' yyyy, HH:mm", { locale: ptBR });
   };
   
   const renderRatingForm = () => {
-    if (match.status === 'upcoming') {
+    if (match.fixture.status.short === 'NS') {
       return (
         <div className="bg-muted/50 rounded-lg p-6 text-center">
-          <p className="text-muted-foreground mb-4">This match hasn't started yet. Come back later to rate it!</p>
-          <Button variant="outline">Add to Watchlist</Button>
+          <p className="text-muted-foreground mb-4">Esta partida ainda não começou. Volte mais tarde para avaliá-la!</p>
+          <Button variant="outline">Adicionar à Lista de Observação</Button>
         </div>
       );
     }
@@ -99,14 +162,14 @@ const MatchDetail = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Rate this Match</CardTitle>
-          <CardDescription>Share your thoughts about this game with the community</CardDescription>
+          <CardTitle>Avaliar esta Partida</CardTitle>
+          <CardDescription>Compartilhe sua opinião sobre este jogo com a comunidade</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmitRating}>
             <div className="space-y-6">
               <div>
-                <h4 className="text-sm font-medium mb-2">Your Rating</h4>
+                <h4 className="text-sm font-medium mb-2">Sua Avaliação</h4>
                 <StarRating 
                   initialRating={userRating} 
                   onChange={setUserRating} 
@@ -115,9 +178,9 @@ const MatchDetail = () => {
               </div>
               
               <div>
-                <h4 className="text-sm font-medium mb-2">Your Review</h4>
+                <h4 className="text-sm font-medium mb-2">Seu Comentário</h4>
                 <Textarea 
-                  placeholder="What did you think of the match?" 
+                  placeholder="O que você achou da partida?" 
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   className="resize-none"
@@ -127,17 +190,17 @@ const MatchDetail = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Best Player</h4>
+                  <h4 className="text-sm font-medium mb-2">Melhor Jogador</h4>
                   <Input 
-                    placeholder="Player name" 
+                    placeholder="Nome do jogador" 
                     value={bestPlayer}
                     onChange={(e) => setBestPlayer(e.target.value)}
                   />
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Best Goal</h4>
+                  <h4 className="text-sm font-medium mb-2">Melhor Gol/Jogada</h4>
                   <Input 
-                    placeholder="Describe the goal" 
+                    placeholder="Descreva o gol/jogada" 
                     value={bestGoal}
                     onChange={(e) => setBestGoal(e.target.value)}
                   />
@@ -162,16 +225,16 @@ const MatchDetail = () => {
                 </div>
                 <div className="flex gap-2">
                   <Input 
-                    placeholder="Add a tag" 
+                    placeholder="Adicionar uma tag" 
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                   />
-                  <Button type="button" variant="outline" onClick={handleAddTag}>Add</Button>
+                  <Button type="button" variant="outline" onClick={handleAddTag}>Adicionar</Button>
                 </div>
               </div>
               
               <Button type="submit" className="w-full" disabled={userRating === 0}>
-                Submit Rating
+                Enviar Avaliação
               </Button>
             </div>
           </form>
@@ -200,17 +263,17 @@ const MatchDetail = () => {
                         {formatMatchDate()}
                       </span>
                     </div>
-                    <h1 className="text-2xl md:text-3xl font-bold">{match.competition}</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold">{match.league.name}</h1>
                   </div>
                   
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm">
                       <Share2 className="h-4 w-4 mr-2" />
-                      Share
+                      Compartilhar
                     </Button>
                     <Button variant="outline" size="sm">
                       <Youtube className="h-4 w-4 mr-2" />
-                      Highlights
+                      Destaques
                     </Button>
                   </div>
                 </div>
@@ -218,32 +281,54 @@ const MatchDetail = () => {
                 <div className="flex flex-col md:flex-row items-center justify-center gap-8">
                   <div className="flex flex-col items-center text-center">
                     <div className="team-badge w-24 h-24 mb-4">
-                      {match.homeTeam.name.substring(0, 2).toUpperCase()}
+                      {match.teams.home.logo ? (
+                        <img 
+                          src={match.teams.home.logo} 
+                          alt={match.teams.home.name} 
+                          className="w-full h-full object-contain" 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/placeholder.svg';
+                          }}
+                        />
+                      ) : (
+                        match.teams.home.name.substring(0, 2).toUpperCase()
+                      )}
                     </div>
-                    <h2 className="text-xl font-bold">{match.homeTeam.name}</h2>
+                    <h2 className="text-xl font-bold">{match.teams.home.name}</h2>
                   </div>
                   
                   <div className="flex flex-col items-center">
                     <div className="text-5xl font-bold flex items-center gap-4">
-                      <span>{match.status !== 'upcoming' ? match.homeTeam.score : ''}</span>
-                      <span className="text-muted-foreground text-2xl">{match.status !== 'upcoming' ? '-' : 'vs'}</span>
-                      <span>{match.status !== 'upcoming' ? match.awayTeam.score : ''}</span>
+                      <span>{match.fixture.status.short !== 'NS' ? match.goals?.home ?? 0 : ''}</span>
+                      <span className="text-muted-foreground text-2xl">{match.fixture.status.short !== 'NS' ? '-' : 'vs'}</span>
+                      <span>{match.fixture.status.short !== 'NS' ? match.goals?.away ?? 0 : ''}</span>
                     </div>
                     
-                    {match.status === 'finished' && match.averageRating && (
+                    {match.fixture.status.short === 'FT' && (
                       <div className="mt-4 star-rating">
-                        <StarRating initialRating={match.averageRating} readOnly size="sm" />
-                        <span className="ml-2 text-sm font-medium">{match.averageRating.toFixed(1)}/5</span>
-                        <span className="ml-1 text-xs text-muted-foreground">({ratings.length} ratings)</span>
+                        <StarRating initialRating={4.5} readOnly size="sm" />
+                        <span className="ml-2 text-sm font-medium">4.5/5</span>
+                        <span className="ml-1 text-xs text-muted-foreground">({ratings.length} avaliações)</span>
                       </div>
                     )}
                   </div>
                   
                   <div className="flex flex-col items-center text-center">
                     <div className="team-badge w-24 h-24 mb-4">
-                      {match.awayTeam.name.substring(0, 2).toUpperCase()}
+                      {match.teams.away.logo ? (
+                        <img 
+                          src={match.teams.away.logo} 
+                          alt={match.teams.away.name} 
+                          className="w-full h-full object-contain" 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/placeholder.svg';
+                          }}
+                        />
+                      ) : (
+                        match.teams.away.name.substring(0, 2).toUpperCase()
+                      )}
                     </div>
-                    <h2 className="text-xl font-bold">{match.awayTeam.name}</h2>
+                    <h2 className="text-xl font-bold">{match.teams.away.name}</h2>
                   </div>
                 </div>
               </div>
@@ -257,7 +342,7 @@ const MatchDetail = () => {
             <div className="lg:col-span-2">
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                 <Star className="h-6 w-6 text-accent" />
-                Community Ratings
+                Avaliações da Comunidade
               </h2>
               
               {ratings.length > 0 ? (
@@ -273,7 +358,7 @@ const MatchDetail = () => {
                             </Avatar>
                             <div>
                               <CardTitle className="text-base">{rating.userName}</CardTitle>
-                              <CardDescription>{new Date(rating.createdAt).toLocaleDateString()}</CardDescription>
+                              <CardDescription>{new Date(rating.createdAt).toLocaleDateString('pt-BR')}</CardDescription>
                             </div>
                           </div>
                           <StarRating initialRating={rating.rating} readOnly size="sm" />
@@ -287,13 +372,13 @@ const MatchDetail = () => {
                             {rating.highlights.bestPlayer && (
                               <div className="flex items-center gap-2">
                                 <Trophy className="h-4 w-4 text-accent" />
-                                <span className="text-sm">Best player: <strong>{rating.highlights.bestPlayer}</strong></span>
+                                <span className="text-sm">Melhor jogador: <strong>{rating.highlights.bestPlayer}</strong></span>
                               </div>
                             )}
                             {rating.highlights.bestGoal && (
                               <div className="flex items-center gap-2">
                                 <Flag className="h-4 w-4 text-accent" />
-                                <span className="text-sm">Best goal: <strong>{rating.highlights.bestGoal}</strong></span>
+                                <span className="text-sm">Melhor gol: <strong>{rating.highlights.bestGoal}</strong></span>
                               </div>
                             )}
                           </div>
@@ -320,7 +405,7 @@ const MatchDetail = () => {
                 </div>
               ) : (
                 <div className="bg-muted/50 rounded-lg p-6 text-center">
-                  <p className="text-muted-foreground">No ratings yet. Be the first to rate this match!</p>
+                  <p className="text-muted-foreground">Nenhuma avaliação ainda. Seja o primeiro a avaliar esta partida!</p>
                 </div>
               )}
             </div>
@@ -329,35 +414,35 @@ const MatchDetail = () => {
               {renderRatingForm()}
               
               <div className="mt-8">
-                <h3 className="text-xl font-bold mb-4">Match Info</h3>
+                <h3 className="text-xl font-bold mb-4">Informações da Partida</h3>
                 <div className="bg-card border rounded-lg p-6">
                   <div className="flex justify-between py-2 text-sm">
-                    <span className="text-muted-foreground">Competition:</span>
-                    <span className="font-medium">{match.competition}</span>
+                    <span className="text-muted-foreground">Competição:</span>
+                    <span className="font-medium">{match.league.name}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between py-2 text-sm">
-                    <span className="text-muted-foreground">Date:</span>
-                    <span className="font-medium">{new Date(match.date).toDateString()}</span>
+                    <span className="text-muted-foreground">Data:</span>
+                    <span className="font-medium">{format(new Date(match.fixture.date), "dd/MM/yyyy", { locale: ptBR })}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between py-2 text-sm">
                     <span className="text-muted-foreground">Status:</span>
-                    <span className="font-medium capitalize">{match.status}</span>
+                    <span className="font-medium capitalize">{getMatchStatusText()}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between py-2 text-sm">
-                    <span className="text-muted-foreground">Venue:</span>
-                    <span className="font-medium">Stadium Name</span>
+                    <span className="text-muted-foreground">Estádio:</span>
+                    <span className="font-medium">{match.fixture.venue?.name || "Não informado"}</span>
                   </div>
                   
-                  {match.status === 'finished' && (
+                  {match.fixture.status.short === 'FT' && (
                     <>
                       <Separator />
                       <div className="flex justify-between py-2 text-sm">
-                        <span className="text-muted-foreground">Average Rating:</span>
+                        <span className="text-muted-foreground">Avaliação Média:</span>
                         <div className="flex items-center">
-                          <span className="font-medium mr-2">{match.averageRating?.toFixed(1) || 'N/A'}</span>
+                          <span className="font-medium mr-2">4.5</span>
                           <Star className="h-4 w-4 text-accent fill-accent" />
                         </div>
                       </div>
@@ -379,7 +464,7 @@ const MatchDetail = () => {
             </div>
             
             <div className="mt-4 md:mt-0 text-sm text-white/50">
-              © 2024 FanPlay. All rights reserved.
+              © 2024 FanPlay. Todos os direitos reservados.
             </div>
           </div>
         </div>

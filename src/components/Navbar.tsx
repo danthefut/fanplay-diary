@@ -20,10 +20,6 @@ const Navbar = () => {
             <Trophy className="h-4 w-4" />
             <span>Início</span>
           </Link>
-          <Link to="/matches" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            <span>Partidas</span>
-          </Link>
           <Link to="/buscar-partidas" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
             <Search className="h-4 w-4" />
             <span>Buscar Partidas</span>

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Navbar from '@/components/Navbar';
@@ -9,14 +10,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon, Search, FilterX, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Search, FilterX, Loader2, Basketball, Football } from 'lucide-react';
 import { useFootballApi } from '@/hooks/useFootballApi';
 import { Match, LeagueResponse } from '@/types/footballApi';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-// Lista de IDs das principais ligas
-const PRINCIPAIS_LIGAS = [
+// Lista de IDs das principais ligas de futebol
+const PRINCIPAIS_LIGAS_FUTEBOL = [
   { id: 71, name: "Campeonato Brasileiro - Série A" },
   { id: 72, name: "Campeonato Brasileiro - Série B" },
   { id: 73, name: "Copa do Brasil" },
@@ -28,14 +29,23 @@ const PRINCIPAIS_LIGAS = [
   { id: 135, name: "Serie A - Itália" },
   { id: 78, name: "Bundesliga - Alemanha" },
   { id: 61, name: "Ligue 1 - França" },
-  { id: 2, name: "UEFA Champions League" },
-  { id: 3, name: "UEFA Europa League" },
   { id: 848, name: "Copa Libertadores" },
   { id: 556, name: "Copa Sul-Americana" }
 ];
 
+// Lista de IDs das principais ligas de basquete (NBA e outras)
+const PRINCIPAIS_LIGAS_BASQUETE = [
+  { id: 12, name: "NBA" },
+  { id: 120, name: "NBB - Brasil" },
+  { id: 52, name: "Euroliga" },
+  { id: 117, name: "Liga ACB - Espanha" },
+  { id: 116, name: "LNB Pro A - França" },
+  { id: 103, name: "NCAA - EUA" }
+];
+
 const BuscarPartidas = () => {
   const { isLoading, getMatches, getLeagues, getRounds } = useFootballApi();
+  const navigate = useNavigate();
   
   const [matches, setMatches] = useState<Match[]>([]);
   const [leagues, setLeagues] = useState<LeagueResponse[]>([]);
@@ -47,6 +57,7 @@ const BuscarPartidas = () => {
   const [rounds, setRounds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('todas');
   const [loadingLeagues, setLoadingLeagues] = useState(false);
+  const [selectedSport, setSelectedSport] = useState<'football' | 'basketball'>('football');
 
   // Anos disponíveis para seleção (apenas 2021 a 2023 para o plano gratuito)
   const years = ['2021', '2022', '2023'];
@@ -56,9 +67,8 @@ const BuscarPartidas = () => {
     const fetchLeagues = async () => {
       setLoadingLeagues(true);
       try {
-        const data = await getLeagues({ season: selectedYear });
+        const data = await getLeagues({ season: selectedYear }, selectedSport);
         if (data && data.response) {
-          // Filtrar apenas as principais ligas
           const allLeagues = data.response;
           console.log("Todas as ligas carregadas:", allLeagues.length);
           setLeagues(allLeagues);
@@ -73,7 +83,7 @@ const BuscarPartidas = () => {
     };
     
     fetchLeagues();
-  }, [selectedYear]);
+  }, [selectedYear, selectedSport]);
   
   // Buscar rodadas disponíveis quando o ano ou liga muda
   useEffect(() => {
@@ -81,7 +91,7 @@ const BuscarPartidas = () => {
       if (!selectedLeagueId) return;
       
       try {
-        const data = await getRounds(parseInt(selectedLeagueId), parseInt(selectedYear));
+        const data = await getRounds(parseInt(selectedLeagueId), parseInt(selectedYear), selectedSport);
         if (data && data.response) {
           const roundsList = data.response.map(r => r.round);
           setRounds(roundsList);
@@ -96,14 +106,23 @@ const BuscarPartidas = () => {
     };
     
     fetchRounds();
-  }, [selectedYear, selectedLeagueId]);
+  }, [selectedYear, selectedLeagueId, selectedSport]);
+
+  // Quando mudar de esporte, resetar a liga selecionada para o padrão daquele esporte
+  useEffect(() => {
+    if (selectedSport === 'football') {
+      setSelectedLeagueId('71'); // Brasileirão Série A
+    } else {
+      setSelectedLeagueId('12'); // NBA
+    }
+  }, [selectedSport]);
 
   // Após a busca inicial, buscar as partidas automaticamente
   useEffect(() => {
     if (selectedLeagueId) {
       handleSearch();
     }
-  }, []);
+  }, [selectedSport]);
   
   // Filtrar partidas com base em critérios
   const filterMatches = (matches: Match[]) => {
@@ -163,7 +182,7 @@ const BuscarPartidas = () => {
     console.log('Buscando partidas com parâmetros:', params);
     
     try {
-      const data = await getMatches(params);
+      const data = await getMatches(params, selectedSport);
       console.log('Resposta da API de partidas:', data);
       
       if (data && data.response) {
@@ -216,9 +235,26 @@ const BuscarPartidas = () => {
         return 'Prorrogação';
       case 'PEN':
         return 'Pênaltis';
+      case 'Q1':
+        return '1º Quarto';
+      case 'Q2':
+        return '2º Quarto';
+      case 'Q3':
+        return '3º Quarto';
+      case 'Q4':
+        return '4º Quarto';
+      case 'OT':
+        return 'Tempo Extra';
       default:
         return status.long;
     }
+  };
+
+  // Navegar para a página de detalhes da partida
+  const handleMatchClick = (match: Match) => {
+    // Armazenar os dados da partida no localStorage para acesso na página de detalhes
+    localStorage.setItem('selectedMatch', JSON.stringify(match));
+    navigate(`/match/${match.fixture.id}`);
   };
   
   // Renderiza uma partida
@@ -227,7 +263,11 @@ const BuscarPartidas = () => {
     const formattedDate = format(matchDate, "dd 'de' MMMM 'de' yyyy, HH:mm", { locale: ptBR });
     
     return (
-      <div key={match.fixture.id} className="border rounded-lg p-4 bg-white shadow-sm">
+      <div 
+        key={match.fixture.id} 
+        className="border rounded-lg p-4 bg-white shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+        onClick={() => handleMatchClick(match)}
+      >
         <div className="flex flex-col">
           <div className="flex justify-between items-center mb-2">
             <div className="text-xs text-muted-foreground">
@@ -236,11 +276,15 @@ const BuscarPartidas = () => {
             <div className={cn(
               "px-2 py-1 rounded-full text-xs font-medium",
               match.fixture.status.short === 'NS' ? "bg-muted text-muted-foreground" :
-              (match.fixture.status.short === '1H' || match.fixture.status.short === '2H' || match.fixture.status.short === 'HT') ? 
+              (match.fixture.status.short === '1H' || match.fixture.status.short === '2H' || match.fixture.status.short === 'HT' ||
+               match.fixture.status.short === 'Q1' || match.fixture.status.short === 'Q2' || match.fixture.status.short === 'Q3' || match.fixture.status.short === 'Q4') ? 
               "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"
             )}>
               {getMatchStatus(match)}
-              {match.fixture.status.elapsed && (match.fixture.status.short === '1H' || match.fixture.status.short === '2H') && 
+              {match.fixture.status.elapsed && 
+               (match.fixture.status.short === '1H' || match.fixture.status.short === '2H' ||
+                match.fixture.status.short === 'Q1' || match.fixture.status.short === 'Q2' || 
+                match.fixture.status.short === 'Q3' || match.fixture.status.short === 'Q4') && 
                 `'${match.fixture.status.elapsed}`}
             </div>
           </div>
@@ -276,7 +320,7 @@ const BuscarPartidas = () => {
             <div className="text-center">
               {match.fixture.status.short !== 'NS' ? (
                 <div className="text-2xl font-bold">
-                  {match.goals.home} - {match.goals.away}
+                  {match.goals?.home ?? match.scores?.home?.total ?? 0} - {match.goals?.away ?? match.scores?.away?.total ?? 0}
                 </div>
               ) : (
                 <div className="text-xl font-medium">vs</div>
@@ -306,7 +350,28 @@ const BuscarPartidas = () => {
       
       <main className="flex-1 py-8">
         <div className="container">
-          <h1 className="text-3xl font-bold mb-8">Buscar Partidas</h1>
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold">Buscar Partidas</h1>
+            
+            <div className="flex">
+              <Button 
+                variant={selectedSport === 'football' ? 'default' : 'outline'} 
+                className="gap-2 mr-2"
+                onClick={() => setSelectedSport('football')}
+              >
+                <Football className="h-4 w-4" />
+                Futebol
+              </Button>
+              <Button 
+                variant={selectedSport === 'basketball' ? 'default' : 'outline'} 
+                className="gap-2"
+                onClick={() => setSelectedSport('basketball')}
+              >
+                <Basketball className="h-4 w-4" />
+                Basquete
+              </Button>
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
@@ -332,12 +397,19 @@ const BuscarPartidas = () => {
                   <SelectValue placeholder="Selecione a liga" />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Lista pré-definida das principais ligas */}
-                  {PRINCIPAIS_LIGAS.map(liga => (
-                    <SelectItem key={liga.id} value={liga.id.toString()}>
-                      {liga.name}
-                    </SelectItem>
-                  ))}
+                  {selectedSport === 'football' ? (
+                    PRINCIPAIS_LIGAS_FUTEBOL.map(liga => (
+                      <SelectItem key={liga.id} value={liga.id.toString()}>
+                        {liga.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    PRINCIPAIS_LIGAS_BASQUETE.map(liga => (
+                      <SelectItem key={liga.id} value={liga.id.toString()}>
+                        {liga.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
